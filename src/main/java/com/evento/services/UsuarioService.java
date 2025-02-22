@@ -1,24 +1,42 @@
 package com.evento.services;
 
 import com.evento.dtos.UsuarioDTO;
+import com.evento.exceptions.BussinesException;
 import com.evento.models.Usuario;
 import com.evento.repositories.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
+import static java.util.Objects.*;
+
 @Service
 public class UsuarioService {
-
+    private static final String MSG_EMAIL = "Usuário já cadastrado com email: %s.";
+    private static final String MSG_CPF = "Usuário já cadastrado com cpf: %s.";
     @Autowired
     UsuarioRepository usuarioRepository;
 
     public UsuarioDTO cadastrarUsuario(UsuarioDTO usuarioDTO){
+        Usuario usuarioEmail = usuarioRepository.findByEmail(usuarioDTO.getEmail());
+        if (nonNull(usuarioEmail)){
+            throw new BussinesException(String.format(MSG_EMAIL,
+                    usuarioDTO.getEmail()));
+        }
+
+        Usuario usuarioCpf = usuarioRepository.findByCpf(usuarioDTO.getCpf());
+        if(nonNull((usuarioCpf))){
+            throw new BussinesException(String.format(MSG_CPF,
+                    usuarioDTO.getCpf()));
+        }
+
         Usuario usuario = converterUsuarioDTOParaUsuario(usuarioDTO);
         usuario = usuarioRepository.save(usuario);
         return converterUsuarioParaUsuarioDTO(usuario);
     }
 
-    public UsuarioDTO converterUsuarioParaUsuarioDTO(Usuario usuario){
+    public UsuarioDTO converterUsuarioParaUsuarioDTO(Usuario usuario) {
         UsuarioDTO usuarioDTO = new UsuarioDTO();
         usuarioDTO.setId(usuario.getId());
         usuarioDTO.setNome(usuario.getNome());
@@ -30,6 +48,7 @@ public class UsuarioService {
         usuarioDTO.setVerificado(usuario.isVerificado());
         return usuarioDTO;
     }
+
     public Usuario converterUsuarioDTOParaUsuario(UsuarioDTO usuarioDTO){
         Usuario usuario = new Usuario();
         usuario.setId(usuarioDTO.getId());
@@ -42,13 +61,33 @@ public class UsuarioService {
         usuario.setVerificado(usuarioDTO.isVerificado());
         return usuario;
     }
+
     public void deletarUsuario(Long id){
         usuarioRepository.deleteById(id);
     }
 
     public UsuarioDTO buscarUsuarioPorId(Long id){
         Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Usuário não encontrado"));
-        return  converterUsuarioParaUsuarioDTO(usuario);
+                .orElseThrow(() -> new BussinesException("Usuário não encontrado"));
+        return converterUsuarioParaUsuarioDTO(usuario);
+    }
+
+    public UsuarioDTO atualizarUsuario(UsuarioDTO usuarioDTO){
+
+        if (isNull(usuarioDTO.getId()))
+            throw new BussinesException("Id não pode ser nulo");
+
+        Usuario usuario = usuarioRepository.findById(usuarioDTO.getId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Usuário não encontrado"));
+
+        usuario = converterUsuarioDTOParaUsuario(usuarioDTO);
+        usuarioRepository.save(usuario);
+        return converterUsuarioParaUsuarioDTO(usuario);
+    }
+
+    public UsuarioDTO buscarUsuarioPorEmail(String email){
+        Usuario usuario = usuarioRepository.findByEmail(email);
+        return converterUsuarioParaUsuarioDTO(usuario);
     }
 }
